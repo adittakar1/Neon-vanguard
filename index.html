@@ -35,10 +35,12 @@
         html, body {
             width: 100%;
             height: 100%;
+            height: 100dvh;
             overflow: hidden;
             background-color: var(--bg-dark);
             font-family: 'Rajdhani', sans-serif;
             color: #ffffff;
+            overscroll-behavior: none;
         }
 
         /* ==========================================================================
@@ -48,6 +50,7 @@
             position: relative;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -321,7 +324,8 @@
             justify-content: center;
             align-items: center;
             z-index: 20;
-            padding: 20px;
+            padding: max(12px, env(safe-area-inset-top)) 14px max(12px, env(safe-area-inset-bottom));
+            overflow-y: auto;
             transition: opacity 0.3s ease;
         }
 
@@ -335,12 +339,13 @@
             border: 1px solid rgba(0, 243, 255, 0.45);
             box-shadow: 0 0 40px rgba(0, 243, 255, 0.2), inset 0 0 20px rgba(176, 38, 255, 0.15);
             border-radius: 18px;
-            padding: 36px 32px;
-            max-width: 480px;
+            padding: clamp(20px, 4vw, 32px) clamp(16px, 4vw, 28px);
+            max-width: 500px;
             width: 100%;
+            max-height: calc(100dvh - 24px);
+            overflow-y: auto;
             text-align: center;
             position: relative;
-            overflow: hidden;
         }
 
         .modal-card::before {
@@ -605,7 +610,7 @@
             font-weight: 700;
             letter-spacing: 1.5px;
             padding: 7px 12px;
-            width: 190px;
+            width: 195px;
             text-transform: uppercase;
             outline: none;
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -616,27 +621,19 @@
             box-shadow: 0 0 12px rgba(0, 243, 255, 0.45);
         }
 
-        .pilot-input::placeholder {
-            color: rgba(255, 255, 255, 0.35);
-            font-weight: 500;
-        }
-
-        /* Creator Credit Styling */
         .creator-badge {
+            margin-top: 14px;
             font-family: 'Orbitron', sans-serif;
-            font-size: 0.78rem;
+            font-size: 0.72rem;
             letter-spacing: 2px;
-            color: rgba(255, 255, 255, 0.85);
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid rgba(0, 243, 255, 0.2);
+            color: rgba(255, 255, 255, 0.65);
             text-transform: uppercase;
         }
 
         .creator-badge span {
             color: var(--neon-cyan);
             font-weight: 700;
-            text-shadow: 0 0 10px rgba(0, 243, 255, 0.65);
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.55);
         }
 
         .hud-watermark {
@@ -649,25 +646,77 @@
             color: rgba(0, 243, 255, 0.45);
             pointer-events: none;
             z-index: 9;
-            text-transform: uppercase;
+            text-shadow: 0 0 8px rgba(0, 243, 255, 0.25);
         }
 
-        /* Responsive Tweaks for Mobile */
-        @media (max-width: 640px) {
+        /* Responsive Tweaks for Mobile & Tablet */
+        @media (max-width: 680px) {
             #hud {
-                padding: 10px 12px;
+                padding: max(8px, env(safe-area-inset-top)) 10px 8px;
+                gap: 6px;
+                flex-wrap: wrap;
             }
             .hud-panel {
-                padding: 7px 10px;
+                padding: 6px 9px;
+                border-radius: 8px;
+            }
+            .hud-label {
+                font-size: 0.62rem;
+                letter-spacing: 1.2px;
             }
             .hud-value {
-                font-size: 1.05rem;
+                font-size: 0.98rem;
+            }
+            .hud-center {
+                order: 3;
+                width: 100%;
+                flex-direction: row;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                padding: 6px 10px;
             }
             .bars-container {
-                min-width: 125px;
+                min-width: 115px;
+                flex: 1;
+                max-width: 170px;
+            }
+            .icon-btn {
+                width: 38px;
+                height: 38px;
+            }
+            #boss-hud {
+                top: 126px;
+                width: 92vw;
+                padding: 6px 10px;
             }
             .modal-card {
-                padding: 26px 20px;
+                padding: 20px 16px;
+            }
+            .pilot-input-group {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 6px;
+            }
+            .pilot-input {
+                width: 100%;
+                text-align: center;
+                font-size: 16px; /* Prevents iOS Safari auto-zoom on focus */
+            }
+            .diff-presets {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .legend-grid {
+                gap: 6px;
+                font-size: 0.72rem;
+            }
+            .neon-btn {
+                padding: 13px 20px;
+                font-size: 0.95rem;
+            }
+            .hud-watermark {
+                font-size: 0.56rem;
+                bottom: max(6px, env(safe-area-inset-bottom));
+                right: 10px;
             }
         }
     </style>
@@ -728,6 +777,9 @@
 
         <!-- Audio & Pause Controls -->
         <div class="hud-controls">
+            <button class="icon-btn" id="autofire-btn" title="Toggle Auto-Fire (Mobile/PC)" aria-label="Toggle Auto-Fire" style="width: auto; padding: 0 10px; font-family: 'Orbitron', sans-serif; font-size: 0.66rem; font-weight: 700; letter-spacing: 1px;">
+                AUTO: OFF
+            </button>
             <button class="icon-btn" id="mute-btn" title="Toggle Audio" aria-label="Toggle Audio">
                 <svg id="icon-sound-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
@@ -751,7 +803,7 @@
 
     <!-- START SCREEN MODAL -->
     <div id="start-modal" class="modal-overlay">
-        <div class="modal-card" style="max-width: 520px; padding: 26px 26px;">
+        <div class="modal-card">
             <h1 class="game-title">NEON VANGUARD</h1>
             <div class="game-subtitle" style="margin-bottom: 16px;">Cybernetic Orbital Defense</div>
 
@@ -2360,6 +2412,7 @@ class GameEngine {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
+        this.wrapper = document.getElementById('game-wrapper');
         this.sound = new SoundEngine();
 
         this.width = window.innerWidth;
@@ -2409,7 +2462,8 @@ class GameEngine {
             pointerActive: false,
             pointerX: 0,
             pointerY: 0,
-            isTouch: false
+            isTouch: false,
+            autoFire: false
         };
 
         this.cacheDOM();
@@ -2418,6 +2472,53 @@ class GameEngine {
         this.bindEvents();
         this.setPilotName(this.pilotName);
         this.setDifficulty(this.difficultyLevel);
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', () => this.handleResize());
+        }
+    }
+
+    handleResize() {
+        const vv = window.visualViewport;
+        this.width = Math.max(280, Math.floor(vv ? vv.width : window.innerWidth));
+        this.height = Math.max(400, Math.floor(vv ? vv.height : window.innerHeight));
+        this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        if (this.wrapper) {
+            this.wrapper.style.width = `${this.width}px`;
+            this.wrapper.style.height = `${this.height}px`;
+        }
+
+        this.canvas.width = Math.floor(this.width * this.dpr);
+        this.canvas.height = Math.floor(this.height * this.dpr);
+        this.canvas.style.width = `${this.width}px`;
+        this.canvas.style.height = `${this.height}px`;
+
+        this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+
+        // Keep boss & player properly positioned on screen orientation or window resize
+        if (this.boss && !this.boss.dead) {
+            this.boss.targetY = Math.min(165, Math.max(125, this.height * 0.22));
+            this.boss.x = Math.max(70, Math.min(this.width - 70, this.boss.x));
+        }
+
+        if (this.player) {
+            this.player.x = Math.max(28, Math.min(this.width - 28, this.player.x));
+            this.player.y = Math.max(78, Math.min(this.height - 28, this.player.y));
+        }
+    }
+
+    initStarfield() {
+        const starColors = ['#ffffff', '#00f3ff', '#ff007f', '#b026ff'];
+        const count = Math.min(130, Math.max(55, Math.floor((this.width * this.height) / 11000)));
+        this.stars = Array.from({ length: count }, () => ({
+            x: Math.random() * this.width,
+            y: Math.random() * this.height,
+            size: Math.random() < 0.75 ? 1.5 : 2.6,
+            speed: 25 + Math.random() * 115,
+            alpha: 0.35 + Math.random() * 0.65,
+            color: starColors[Math.floor(Math.random() * starColors.length)]
+        }));
     }
 
     cacheDOM() {
@@ -2553,7 +2654,69 @@ class GameEngine {
                 e.preventDefault();
             }
         });
-// ... existing code ... -->
+
+        window.addEventListener('keyup', (e) => {
+            this.input.keys[e.code] = false;
+        });
+
+        // Mouse Controls (PC Drag / Click-and-Hold to Move & Fire)
+        this.canvas.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            this.sound.init();
+            const rect = this.canvas.getBoundingClientRect();
+            this.input.pointerActive = true;
+            this.input.isTouch = false;
+            this.input.pointerX = e.clientX - rect.left;
+            this.input.pointerY = e.clientY - rect.top;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!this.input.pointerActive || this.input.isTouch) return;
+            const rect = this.canvas.getBoundingClientRect();
+            this.input.pointerX = e.clientX - rect.left;
+            this.input.pointerY = e.clientY - rect.top;
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (!this.input.isTouch) {
+                this.input.pointerActive = false;
+            }
+        });
+
+        // Touch Controls (Mobile / Tablet Finger Drag & Auto-Fire)
+        this.canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 0) {
+                e.preventDefault();
+                this.sound.init();
+                const rect = this.canvas.getBoundingClientRect();
+                const touch = e.touches[0];
+                this.input.pointerActive = true;
+                this.input.isTouch = true;
+                this.input.pointerX = touch.clientX - rect.left;
+                this.input.pointerY = touch.clientY - rect.top;
+            }
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                e.preventDefault();
+                const rect = this.canvas.getBoundingClientRect();
+                const touch = e.touches[0];
+                this.input.pointerActive = true;
+                this.input.isTouch = true;
+                this.input.pointerX = touch.clientX - rect.left;
+                this.input.pointerY = touch.clientY - rect.top;
+            }
+        }, { passive: false });
+
+        const endTouch = () => {
+            if (this.input.isTouch) {
+                this.input.pointerActive = false;
+            }
+        };
+        this.canvas.addEventListener('touchend', endTouch);
+        this.canvas.addEventListener('touchcancel', endTouch);
+
         // UI Button Listeners
         if (this.ui.pilotNameInput) {
             this.ui.pilotNameInput.addEventListener('input', (e) => {
@@ -2624,29 +2787,15 @@ class GameEngine {
             this.ui.iconSoundOn.style.display = isMuted ? 'none' : 'block';
             this.ui.iconSoundOff.style.display = isMuted ? 'block' : 'none';
         });
-    }
 
-    handleResize() {
-        this.width = window.innerWidth;
-        this.height = window.innerHeight;
-        this.dpr = Math.min(window.devicePixelRatio || 1, 2);
-
-        this.canvas.width = this.width * this.dpr;
-        this.canvas.height = this.height * this.dpr;
-        this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    }
-
-    initStarfield() {
-        this.stars = [];
-        const count = Math.floor((this.width * this.height) / 9500);
-        for (let i = 0; i < Math.max(70, count); i++) {
-            this.stars.push({
-                x: Math.random() * this.width,
-                y: Math.random() * this.height,
-                size: Math.random() * 2 + 0.5,
-                speed: 25 + Math.random() * 140,
-                alpha: 0.25 + Math.random() * 0.75,
-                color: Math.random() > 0.85 ? '#00f3ff' : (Math.random() > 0.9 ? '#ff007f' : '#ffffff')
+        const autoFireBtn = document.getElementById('autofire-btn');
+        if (autoFireBtn) {
+            autoFireBtn.addEventListener('click', () => {
+                this.sound.init();
+                this.input.autoFire = !this.input.autoFire;
+                autoFireBtn.textContent = this.input.autoFire ? 'AUTO: ON' : 'AUTO: OFF';
+                autoFireBtn.style.borderColor = this.input.autoFire ? '#00ff88' : '';
+                autoFireBtn.style.color = this.input.autoFire ? '#00ff88' : '';
             });
         }
     }
@@ -2917,7 +3066,7 @@ class GameEngine {
         // Update Player Movement & Weapons
         if (this.player) {
             this.player.update(dt, this.input, this.width, this.height);
-            const wantsToShoot = this.input.keys['Space'] || this.input.pointerActive;
+            const wantsToShoot = this.input.keys['Space'] || this.input.pointerActive || this.input.autoFire;
             if (wantsToShoot) {
                 this.firePlayerWeapons();
             }
@@ -3051,23 +3200,23 @@ class GameEngine {
                 this.damagePlayer(eb.damage);
             }
         }
-
-        // Collision: Enemies vs Player Hull
-        for (const e of this.enemies) {
-            if (e.dead) continue;
-            const dist = Math.hypot(e.x - this.player.x, e.y - this.player.y);
-            if (dist < e.radius + effectivePlayerRadius - 4) {
-                e.dead = true;
-                this.spawnExplosion(e.x, e.y, e.color, 24, 1.1);
-                this.damagePlayer(30);
-            }
-        }
-
-        // Collision: Boss vs Player Hull
+        // Collision: Boss vs Player Hull & Boss Sweeping Laser Beam
         if (this.boss && !this.boss.dead) {
             const dist = Math.hypot(this.boss.x - this.player.x, this.boss.y - this.player.y);
             if (dist < this.boss.radius + effectivePlayerRadius - 6) {
                 this.damagePlayer(35);
+            }
+
+            if (this.boss.beamActive) {
+                const dx = this.player.x - this.boss.x;
+                const dy = this.player.y - this.boss.y;
+                const dirX = Math.cos(this.boss.beamAngle);
+                const dirY = Math.sin(this.boss.beamAngle);
+                const along = dx * dirX + dy * dirY;
+                const perp = Math.abs(dx * dirY - dy * dirX);
+                if (along > 24 && along < 1100 && perp < effectivePlayerRadius + 8) {
+                    this.damagePlayer(24);
+                }
             }
         }
 
