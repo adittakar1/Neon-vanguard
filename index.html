@@ -1296,9 +1296,8 @@
                 <div class="setting-row">
                     <span>Mobile Control Style</span>
                     <select id="setting-mobile-ctrl" class="setting-select">
-                        <option value="drag" selected>TOUCH DRAG + JOYSTICK</option>
-                        <option value="joystick">VIRTUAL JOYSTICK ONLY</option>
-                        <option value="dragonly">TOUCH DRAG ONLY</option>
+                        <option value="drag" selected>TOUCH DRAG ONLY</option>
+                        <option value="joystick">VIRTUAL JOYSTICK</option>
                     </select>
                 </div>
                 <div class="setting-row">
@@ -2762,6 +2761,7 @@ class GameEngine {
         this.input = {
             keys: {},
             pointerActive: false,
+            activeTouchId: null,
             pointerX: 0,
             pointerY: 0,
             lastTouchX: 0,
@@ -2771,6 +2771,7 @@ class GameEngine {
             isTouch: false,
             autoFire: this.isMobileDevice,
             joyActive: false,
+            joyTouchId: null,
             joyX: 0,
             joyY: 0,
             keyFire: this.profile.keyFire || 'Space',
@@ -2867,12 +2868,25 @@ class GameEngine {
         this.updateTouchControlVisibility();
     }
 
+    getLocalDateKey() {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    }
+
     updateTouchControlVisibility() {
         const joy = document.getElementById('virtual-joystick');
         if (!joy) return;
-        const mode = this.profile.mobileCtrl;
-        const showJoy = this.isMobileDevice && (mode === 'drag' || mode === 'joystick');
+        const showJoy = this.isMobileDevice && this.profile.mobileCtrl === 'joystick';
         joy.style.display = showJoy ? 'block' : 'none';
+        if (!showJoy) {
+            this.input.joyActive = false;
+            this.input.joyTouchId = null;
+            this.input.joyX = 0;
+            this.input.joyY = 0;
+        }
     }
 
     initStarfield() {
@@ -3018,7 +3032,7 @@ class GameEngine {
         if (this.ui.creditsDisplay) {
             this.ui.creditsDisplay.textContent = this.profile.credits.toLocaleString();
         }
-        const today = new Date().toISOString().slice(0, 10);
+        const today = this.getLocalDateKey();
         if (this.ui.dailyRewardBtn) {
             if (this.profile.lastDailyClaim === today) {
                 this.ui.dailyRewardBtn.textContent = 'CLAIMED ✓';
@@ -3223,7 +3237,7 @@ class GameEngine {
         if (this.ui.dailyRewardBtn) {
             this.ui.dailyRewardBtn.addEventListener('click', () => {
                 this.sound.init();
-                const today = new Date().toISOString().slice(0, 10);
+                const today = this.getLocalDateKey();
                 if (this.profile.lastDailyClaim !== today) {
                     this.profile.lastDailyClaim = today;
                     this.profile.credits += 300;
@@ -3233,6 +3247,19 @@ class GameEngine {
                 }
             });
         }
+
+        // Auto-Pause when switching tabs or minimizing browser
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && this.state === 'PLAYING') {
+                this.togglePause();
+            }
+        });
+
+        window.addEventListener('blur', () => {
+            if (this.state === 'PLAYING') {
+                this.togglePause();
+            }
+        });
 
         // Settings Listeners
         const gfxSel = document.getElementById('setting-gfx');
@@ -3308,75 +3335,88 @@ class GameEngine {
             this.input.keys[e.code] = false;
         });
 
-        // Mouse Controls
+        // Mouse Drag Controls for Desktop
         this.canvas.addEventListener('mousedown', (e) => {
-            if (e.button !== 0) return;
-            this.sound.init();
-            const rect = this.canvas.getBoundingClientRect();
-            this.input.pointerActive = true;
-            this.input.isTouch = false;
-            this.input.pointerX = e.clientX - rect.left;
-            this.input.pointerY = e.clientY - rect.top;
+            if (e.button === 0) {
+                this.sound.init();
+                const rect = this.canvas.getBoundingClientRect();
+                this.input.pointerActive = true;
+                this.input.isTouch = false;
+                this.input.pointerX = e.clientX - rect.left;
+                this.input.pointerY = e.clientY - rect.top;
+            }
         });
 
         window.addEventListener('mousemove', (e) => {
-            if (!this.input.pointerActive || this.input.isTouch) return;
-            const rect = this.canvas.getBoundingClientRect();
-            this.input.pointerX = e.clientX - rect.left;
-            this.input.pointerY = e.clientY - rect.top;
+            if (this.input.pointerActive && !this.input.isTouch) {
+                const rect = this.canvas.getBoundingClientRect();
+                this.input.pointerX = e.clientX - rect.left;
+                this.input.pointerY = e.clientY - rect.top;
+            }
         });
 
         window.addEventListener('mouseup', () => {
-            if (!this.input.isTouch) this.input.pointerActive = false;
+            if (!this.input.isTouch) {
+                this.input.pointerActive = false;
+            }
         });
 
-        // Touch Drag Controls (1:1 Relative Delta)
+        // Multi-Touch Safe Drag Controls (1:1 Relative Delta tracked by touch identifier)
         this.canvas.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 0 && this.profile.mobileCtrl !== 'joystick') {
+            if (e.changedTouches.length > 0 && this.profile.mobileCtrl !== 'joystick') {
                 e.preventDefault();
                 this.sound.init();
-                const rect = this.canvas.getBoundingClientRect();
-                const touch = e.touches[0];
-                this.input.pointerActive = true;
-                this.input.isTouch = true;
-                this.input.lastTouchX = touch.clientX - rect.left;
-                this.input.lastTouchY = touch.clientY - rect.top;
-                this.input.pointerDeltaX = 0;
-                this.input.pointerDeltaY = 0;
+                if (this.input.activeTouchId === null) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const touch = e.changedTouches[0];
+                    this.input.activeTouchId = touch.identifier;
+                    this.input.pointerActive = true;
+                    this.input.isTouch = true;
+                    this.input.lastTouchX = touch.clientX - rect.left;
+                    this.input.lastTouchY = touch.clientY - rect.top;
+                    this.input.pointerDeltaX = 0;
+                    this.input.pointerDeltaY = 0;
+                }
             }
         }, { passive: false });
 
         this.canvas.addEventListener('touchmove', (e) => {
-            if (e.touches.length > 0 && this.profile.mobileCtrl !== 'joystick') {
+            if (this.profile.mobileCtrl !== 'joystick') {
                 e.preventDefault();
                 const rect = this.canvas.getBoundingClientRect();
-                const touch = e.touches[0];
-                const curX = touch.clientX - rect.left;
-                const curY = touch.clientY - rect.top;
-                if (!this.input.pointerActive) {
-                    this.input.lastTouchX = curX;
-                    this.input.lastTouchY = curY;
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    const touch = e.changedTouches[i];
+                    if (touch.identifier === this.input.activeTouchId) {
+                        const curX = touch.clientX - rect.left;
+                        const curY = touch.clientY - rect.top;
+                        this.input.pointerDeltaX += curX - this.input.lastTouchX;
+                        this.input.pointerDeltaY += curY - this.input.lastTouchY;
+                        this.input.lastTouchX = curX;
+                        this.input.lastTouchY = curY;
+                        this.input.pointerActive = true;
+                        this.input.isTouch = true;
+                        break;
+                    }
                 }
-                this.input.pointerDeltaX += curX - this.input.lastTouchX;
-                this.input.pointerDeltaY += curY - this.input.lastTouchY;
-                this.input.lastTouchX = curX;
-                this.input.lastTouchY = curY;
-                this.input.pointerActive = true;
-                this.input.isTouch = true;
             }
         }, { passive: false });
 
-        const endTouch = () => {
-            if (this.input.isTouch) {
-                this.input.pointerActive = false;
-                this.input.pointerDeltaX = 0;
-                this.input.pointerDeltaY = 0;
+        const endTouch = (e) => {
+            if (!this.input.isTouch) return;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === this.input.activeTouchId) {
+                    this.input.activeTouchId = null;
+                    this.input.pointerActive = false;
+                    this.input.pointerDeltaX = 0;
+                    this.input.pointerDeltaY = 0;
+                    break;
+                }
             }
         };
         this.canvas.addEventListener('touchend', endTouch);
         this.canvas.addEventListener('touchcancel', endTouch);
 
-        // Virtual Joystick Touch Handlers
+        // Multi-Touch Safe Virtual Joystick Handlers
         const joyEl = document.getElementById('virtual-joystick');
         const knobEl = document.getElementById('joystick-knob');
         if (joyEl && knobEl) {
@@ -3402,34 +3442,54 @@ class GameEngine {
                 e.preventDefault();
                 e.stopPropagation();
                 this.sound.init();
-                const t = e.changedTouches[0];
-                updateJoy(t.clientX, t.clientY);
+                if (this.input.joyTouchId === null && e.changedTouches.length > 0) {
+                    const t = e.changedTouches[0];
+                    this.input.joyTouchId = t.identifier;
+                    updateJoy(t.clientX, t.clientY);
+                }
             }, { passive: false });
 
             joyEl.addEventListener('touchmove', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const t = e.changedTouches[0];
-                updateJoy(t.clientX, t.clientY);
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    const t = e.changedTouches[i];
+                    if (t.identifier === this.input.joyTouchId) {
+                        updateJoy(t.clientX, t.clientY);
+                        break;
+                    }
+                }
             }, { passive: false });
 
             const resetJoy = (e) => {
                 e.stopPropagation();
-                this.input.joyActive = false;
-                this.input.joyX = 0;
-                this.input.joyY = 0;
-                knobEl.style.transform = 'translate(-50%, -50%)';
+                for (let i = 0; i < e.changedTouches.length; i++) {
+                    if (e.changedTouches[i].identifier === this.input.joyTouchId) {
+                        this.input.joyTouchId = null;
+                        this.input.joyActive = false;
+                        this.input.joyX = 0;
+                        this.input.joyY = 0;
+                        knobEl.style.transform = 'translate(-50%, -50%)';
+                        break;
+                    }
+                }
             };
             joyEl.addEventListener('touchend', resetJoy);
             joyEl.addEventListener('touchcancel', resetJoy);
         }
 
-        // Ultimate Nova Button
+        // Ultimate Nova Button (touchstart + click for instant multi-touch responsiveness)
         if (this.ui.ultActionBtn) {
-            this.ui.ultActionBtn.addEventListener('click', () => {
+            const triggerUlt = (e) => {
+                if (e.type === 'touchstart') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
                 this.sound.init();
                 this.triggerUltimateNova();
-            });
+            };
+            this.ui.ultActionBtn.addEventListener('touchstart', triggerUlt, { passive: false });
+            this.ui.ultActionBtn.addEventListener('click', triggerUlt);
         }
 
         // Pilot & Difficulty Listeners
@@ -3647,8 +3707,10 @@ class GameEngine {
     }
 
     spawnExplosion(x, y, color, count = 20, speedScale = 1) {
+        const maxParticles = this.isMobileDevice ? 85 : 150;
+        if (this.particles.length >= maxParticles) return;
         const gfxMult = this.profile.gfxQuality === 'low' ? 0.35 : this.profile.gfxQuality === 'medium' ? 0.65 : 1.0;
-        const cap = Math.max(4, Math.round((this.isMobileDevice ? Math.min(count, 16) : count) * gfxMult));
+        const cap = Math.min(maxParticles - this.particles.length, Math.max(4, Math.round((this.isMobileDevice ? Math.min(count, 14) : count) * gfxMult)));
         for (let i = 0; i < cap; i++) {
             this.particles.push(new Particle(x, y, color, speedScale));
         }
@@ -3743,8 +3805,8 @@ class GameEngine {
         // Charge Ultimate Nova
         this.player.ultCharge = Math.min(100, this.player.ultCharge + (e.type === 'miniboss' ? 35 : 9));
 
-        // Daily Challenge Check (25 kills in a run)
-        const today = new Date().toISOString().slice(0, 10);
+        // Daily Challenge Check (25 kills in a run using local date)
+        const today = this.getLocalDateKey();
         if (this.runKills >= 25 && !(this.profile.dailyChallengeDate === today && this.profile.dailyChallengeCompleted)) {
             this.profile.dailyChallengeDate = today;
             this.profile.dailyChallengeCompleted = true;
@@ -3961,10 +4023,12 @@ class GameEngine {
                 this.width,
                 this.player,
                 (x, y, vx, vy, color, options = {}) => {
+                    if (this.enemyBullets.length >= 220) return;
                     this.sound.playEnemyShoot();
                     this.enemyBullets.push(new Bullet(x, y, vx, vy, false, color, options.damage || 18, options));
                 },
                 (minionType, mx, my) => {
+                    if (this.enemies.length >= 16) return;
                     this.enemies.push(new Enemy(minionType, mx, my, this.wave - 1, this.diff));
                 }
             );
@@ -4041,8 +4105,10 @@ class GameEngine {
             if (this.boss.beamActive) {
                 const dx = this.player.x - this.boss.x;
                 const dy = this.player.y - this.boss.y;
-                const along = dx * Math.cos(this.boss.beamAngle) + dy * Math.sin(this.boss.beamAngle);
-                const perp = Math.abs(dx * Math.sin(this.boss.beamAngle) - dy * Math.cos(this.boss.beamAngle));
+                const cosA = Math.cos(this.boss.beamAngle);
+                const sinA = Math.sin(this.boss.beamAngle);
+                const along = dx * cosA + dy * sinA;
+                const perp = Math.abs(dx * sinA - dy * cosA);
                 if (along > 24 && along < 1100 && perp < effRad + 8) this.damagePlayer(24);
             }
         }
