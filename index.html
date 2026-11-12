@@ -203,6 +203,10 @@
             pointer-events: auto;
         }
 
+        .auto-text-label {
+            display: inline;
+        }
+
         .icon-btn {
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
@@ -652,42 +656,105 @@
         /* Responsive Tweaks for Mobile & Tablet */
         @media (max-width: 680px) {
             #hud {
-                padding: max(8px, env(safe-area-inset-top)) 10px 8px;
-                gap: 6px;
-                flex-wrap: wrap;
+                padding: max(6px, env(safe-area-inset-top)) 8px 4px;
+                gap: 5px;
+                flex-wrap: nowrap;
+                align-items: center;
             }
             .hud-panel {
-                padding: 6px 9px;
-                border-radius: 8px;
+                padding: 4px 7px;
+                border-radius: 7px;
             }
-            .hud-label {
-                font-size: 0.62rem;
-                letter-spacing: 1.2px;
+            /* Hide redundant verbose text on mobile so play area stays wide open */
+            .hud-pilot-row,
+            .hud-best-row,
+            .hud-score-title,
+            .hud-diff-sep,
+            #hud-diff-label,
+            .bar-tag {
+                display: none !important;
+            }
+            .hud-score-panel {
+                min-width: 72px;
+                flex-shrink: 0;
             }
             .hud-value {
-                font-size: 0.98rem;
+                font-size: 0.86rem;
+                line-height: 1.1;
             }
             .hud-center {
-                order: 3;
+                flex: 1;
+                min-width: 0;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 3px;
+                padding: 4px 7px;
+            }
+            .hud-wave-row {
                 width: 100%;
-                flex-direction: row;
-                justify-content: space-between;
-                flex-wrap: wrap;
-                padding: 6px 10px;
+                justify-content: space-between !important;
+                gap: 4px !important;
+            }
+            .hud-wave-row .hud-label {
+                font-size: 0.6rem;
+                letter-spacing: 0.8px;
+            }
+            .lives-hearts {
+                font-size: 0.68rem;
+                letter-spacing: 1px;
+                line-height: 1;
             }
             .bars-container {
-                min-width: 115px;
-                flex: 1;
-                max-width: 170px;
+                min-width: 0;
+                width: 100%;
+                max-width: none;
+                gap: 3px;
+            }
+            .bar-track {
+                height: 5px;
+            }
+            #active-buffs {
+                margin-top: 1px;
+                gap: 4px;
+            }
+            .buff-badge {
+                font-size: 0.52rem;
+                padding: 1px 5px;
+                letter-spacing: 0.5px;
+            }
+            .hud-controls {
+                gap: 4px;
+                flex-shrink: 0;
             }
             .icon-btn {
-                width: 38px;
-                height: 38px;
+                width: 30px;
+                height: 30px;
+                border-radius: 7px;
+            }
+            .icon-btn svg {
+                width: 15px;
+                height: 15px;
+            }
+            #autofire-btn {
+                padding: 0 6px !important;
+                font-size: 0.56rem !important;
+                letter-spacing: 0.5px !important;
+            }
+            .auto-text-label {
+                display: none;
             }
             #boss-hud {
-                top: 126px;
-                width: 92vw;
-                padding: 6px 10px;
+                top: 56px;
+                width: 94vw;
+                padding: 5px 9px;
+            }
+            .boss-hud-header {
+                font-size: 0.64rem;
+                letter-spacing: 1px;
+                margin-bottom: 3px;
+            }
+            .boss-bar-track {
+                height: 8px;
             }
             .modal-card {
                 padding: 20px 16px;
@@ -714,9 +781,10 @@
                 font-size: 0.95rem;
             }
             .hud-watermark {
-                font-size: 0.56rem;
-                bottom: max(6px, env(safe-area-inset-bottom));
-                right: 10px;
+                font-size: 0.52rem;
+                bottom: max(5px, env(safe-area-inset-bottom));
+                right: 8px;
+                opacity: 0.65;
             }
         }
     </style>
@@ -747,21 +815,21 @@
     <!-- Heads-Up Display -->
     <header id="hud">
         <!-- Score & Multiplier -->
-        <div class="hud-panel">
-            <div class="hud-label" style="color: var(--neon-cyan); font-weight: 700;">PILOT: <span id="hud-pilot-name" style="color: #fff;">VANGUARD-01</span></div>
-            <div class="hud-label">SCORE <span id="multiplier-text" style="color: var(--neon-yellow); font-weight: 700;">x1.0</span></div>
+        <div class="hud-panel hud-score-panel">
+            <div class="hud-label hud-pilot-row" style="color: var(--neon-cyan); font-weight: 700;">PILOT: <span id="hud-pilot-name" style="color: #fff;">VANGUARD-01</span></div>
+            <div class="hud-label"><span class="hud-score-title">SCORE </span><span id="multiplier-text" style="color: var(--neon-yellow); font-weight: 700;">x1.0</span></div>
             <div class="hud-value" id="score-display">000000</div>
-            <div class="hud-label" style="margin-top: 4px;">BEST: <span id="highscore-hud" style="color: #fff;">0</span></div>
+            <div class="hud-label hud-best-row" style="margin-top: 4px;">BEST: <span id="highscore-hud" style="color: #fff;">0</span></div>
         </div>
 
         <!-- Center Wave & Integrity Bars -->
         <div class="hud-panel hud-center">
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;">
+            <div class="hud-wave-row" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center;">
                 <div class="hud-label" style="color: var(--neon-pink); font-weight: 700; margin: 0;">WAVE <span id="wave-display">01</span></div>
-                <span style="opacity: 0.35;">|</span>
+                <span class="hud-diff-sep" style="opacity: 0.35;">|</span>
                 <div class="hud-label" id="hud-diff-label" style="color: var(--neon-cyan); font-weight: 700; margin: 0;">LV 2 • EASY</div>
+                <div class="lives-hearts" id="lives-display" title="Remaining Lives">♥ ♥ ♥ ♥</div>
             </div>
-            <div class="lives-hearts" id="lives-display" title="Remaining Lives">♥ ♥ ♥ ♥</div>
             <div class="bars-container">
                 <div class="bar-row">
                     <span class="bar-tag" style="color: #ff4d88;">HULL</span>
@@ -778,7 +846,7 @@
         <!-- Audio & Pause Controls -->
         <div class="hud-controls">
             <button class="icon-btn" id="autofire-btn" title="Toggle Auto-Fire (Mobile/PC)" aria-label="Toggle Auto-Fire" style="width: auto; padding: 0 10px; font-family: 'Orbitron', sans-serif; font-size: 0.66rem; font-weight: 700; letter-spacing: 1px;">
-                AUTO: OFF
+                <span class="auto-text-label">AUTO: </span><span id="autofire-state">OFF</span>
             </button>
             <button class="icon-btn" id="mute-btn" title="Toggle Audio" aria-label="Toggle Audio">
                 <svg id="icon-sound-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2789,11 +2857,14 @@ class GameEngine {
         });
 
         const autoFireBtn = document.getElementById('autofire-btn');
+        const autoFireState = document.getElementById('autofire-state');
         if (autoFireBtn) {
             autoFireBtn.addEventListener('click', () => {
                 this.sound.init();
                 this.input.autoFire = !this.input.autoFire;
-                autoFireBtn.textContent = this.input.autoFire ? 'AUTO: ON' : 'AUTO: OFF';
+                if (autoFireState) {
+                    autoFireState.textContent = this.input.autoFire ? 'ON' : 'OFF';
+                }
                 autoFireBtn.style.borderColor = this.input.autoFire ? '#00ff88' : '';
                 autoFireBtn.style.color = this.input.autoFire ? '#00ff88' : '';
             });
