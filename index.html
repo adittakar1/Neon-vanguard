@@ -582,6 +582,45 @@
             text-shadow: 0 0 8px rgba(255, 0, 127, 0.6);
         }
 
+        /* Custom Pilot Callsign Input */
+        .pilot-input-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(0, 243, 255, 0.35);
+            border-radius: 12px;
+            padding: 10px 14px;
+            margin-bottom: 14px;
+        }
+
+        .pilot-input {
+            background: rgba(10, 16, 34, 0.9);
+            border: 1px solid rgba(0, 243, 255, 0.4);
+            border-radius: 8px;
+            color: #ffffff;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            padding: 7px 12px;
+            width: 190px;
+            text-transform: uppercase;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .pilot-input:focus {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 12px rgba(0, 243, 255, 0.45);
+        }
+
+        .pilot-input::placeholder {
+            color: rgba(255, 255, 255, 0.35);
+            font-weight: 500;
+        }
+
         /* Creator Credit Styling */
         .creator-badge {
             font-family: 'Orbitron', sans-serif;
@@ -660,6 +699,7 @@
     <header id="hud">
         <!-- Score & Multiplier -->
         <div class="hud-panel">
+            <div class="hud-label" style="color: var(--neon-cyan); font-weight: 700;">PILOT: <span id="hud-pilot-name" style="color: #fff;">VANGUARD-01</span></div>
             <div class="hud-label">SCORE <span id="multiplier-text" style="color: var(--neon-yellow); font-weight: 700;">x1.0</span></div>
             <div class="hud-value" id="score-display">000000</div>
             <div class="hud-label" style="margin-top: 4px;">BEST: <span id="highscore-hud" style="color: #fff;">0</span></div>
@@ -714,6 +754,12 @@
         <div class="modal-card" style="max-width: 520px; padding: 26px 26px;">
             <h1 class="game-title">NEON VANGUARD</h1>
             <div class="game-subtitle" style="margin-bottom: 16px;">Cybernetic Orbital Defense</div>
+
+            <!-- Custom Pilot Callsign Input -->
+            <div class="pilot-input-group">
+                <label for="pilot-name-input" class="hud-label" style="margin: 0; color: var(--neon-cyan); font-weight: 700;">PILOT CALLSIGN</label>
+                <input type="text" id="pilot-name-input" class="pilot-input" maxlength="14" placeholder="ENTER NAME..." autocomplete="off">
+            </div>
 
             <!-- 11-Level Difficulty Selector (0 to 10) -->
             <div class="difficulty-box">
@@ -790,7 +836,8 @@
         <div class="modal-card">
             <h2 class="game-title" style="background: linear-gradient(180deg, #fff 10%, #ff007f 100%); -webkit-background-clip: text;">HULL BREACHED</h2>
             <div class="game-subtitle" id="new-record-badge" style="color: var(--neon-yellow);">Vanguard Destroyed</div>
-            <div id="gameover-diff-tag" style="font-family: 'Orbitron', sans-serif; font-size: 0.8rem; color: var(--neon-cyan); margin-top: -14px; margin-bottom: 12px;">DIFFICULTY: LV 2 • EASY</div>
+            <div id="gameover-pilot-tag" style="font-family: 'Orbitron', sans-serif; font-size: 0.85rem; color: #fff; margin-top: -12px; margin-bottom: 16px; letter-spacing: 1.5px;">PILOT: VANGUARD-01</div>
+            <div id="gameover-diff-tag" style="font-family: 'Orbitron', sans-serif; font-size: 0.8rem; color: var(--neon-cyan); margin-top: -10px; margin-bottom: 12px;">DIFFICULTY: LV 2 • EASY</div>
 
             <div class="stats-summary">
                 <div>
@@ -2330,10 +2377,14 @@ class GameEngine {
 
         // Selected difficulty level (0 to 10, default 2 = EASY)
         let savedDiff = 2;
+        let savedPilot = 'VANGUARD-01';
         try {
             const raw = parseInt(localStorage.getItem('neonVanguardDifficulty'), 10);
             if (!isNaN(raw) && raw >= 0 && raw <= 10) savedDiff = raw;
+            const storedName = localStorage.getItem('neonVanguardPilotName');
+            if (storedName && storedName.trim()) savedPilot = storedName.trim().toUpperCase();
         } catch (e) {}
+        this.pilotName = savedPilot;
         this.difficultyLevel = savedDiff;
         this.diff = DIFFICULTY_LEVELS[this.difficultyLevel];
         this.lives = this.diff.lives;
@@ -2365,11 +2416,15 @@ class GameEngine {
         this.handleResize();
         this.initStarfield();
         this.bindEvents();
+        this.setPilotName(this.pilotName);
         this.setDifficulty(this.difficultyLevel);
     }
 
     cacheDOM() {
         this.ui = {
+            hudPilotName: document.getElementById('hud-pilot-name'),
+            pilotNameInput: document.getElementById('pilot-name-input'),
+            gameoverPilotTag: document.getElementById('gameover-pilot-tag'),
             score: document.getElementById('score-display'),
             multiplier: document.getElementById('multiplier-text'),
             highscoreHud: document.getElementById('highscore-hud'),
@@ -2401,6 +2456,24 @@ class GameEngine {
             iconSoundOn: document.getElementById('icon-sound-on'),
             iconSoundOff: document.getElementById('icon-sound-off')
         };
+    }
+
+    setPilotName(rawName) {
+        const cleaned = (rawName || '').trim().toUpperCase().slice(0, 14);
+        this.pilotName = cleaned || 'VANGUARD-01';
+        try {
+            localStorage.setItem('neonVanguardPilotName', this.pilotName);
+        } catch (e) {}
+
+        if (this.ui.pilotNameInput && document.activeElement !== this.ui.pilotNameInput) {
+            this.ui.pilotNameInput.value = cleaned;
+        }
+        if (this.ui.hudPilotName) {
+            this.ui.hudPilotName.textContent = this.pilotName;
+        }
+        if (this.ui.gameoverPilotTag) {
+            this.ui.gameoverPilotTag.textContent = `PILOT: ${this.pilotName}`;
+        }
     }
 
     loadHighScore(level) {
@@ -2464,6 +2537,14 @@ class GameEngine {
 
         // Keyboard Inputs
         window.addEventListener('keydown', (e) => {
+            if (document.activeElement === this.ui.pilotNameInput) {
+                if (e.code === 'Enter') {
+                    this.ui.pilotNameInput.blur();
+                    this.sound.init();
+                    this.startNewGame(1);
+                }
+                return;
+            }
             this.input.keys[e.code] = true;
             if ((e.code === 'KeyP' || e.code === 'Escape') && (this.state === 'PLAYING' || this.state === 'PAUSED')) {
                 this.togglePause();
@@ -2472,57 +2553,17 @@ class GameEngine {
                 e.preventDefault();
             }
         });
-
-        window.addEventListener('keyup', (e) => {
-            this.input.keys[e.code] = false;
-        });
-
-        // Mouse Inputs on Canvas
-        this.canvas.addEventListener('mousedown', (e) => {
-            if (this.state !== 'PLAYING') return;
-            this.sound.init();
-            this.input.pointerActive = true;
-            this.input.isTouch = false;
-            this.input.pointerX = e.clientX;
-            this.input.pointerY = e.clientY;
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if (this.input.pointerActive && !this.input.isTouch) {
-                this.input.pointerX = e.clientX;
-                this.input.pointerY = e.clientY;
-            }
-        });
-
-        window.addEventListener('mouseup', () => {
-            this.input.pointerActive = false;
-        });
-
-        // Touch Inputs on Canvas
-        this.canvas.addEventListener('touchstart', (e) => {
-            if (this.state !== 'PLAYING') return;
-            e.preventDefault();
-            this.sound.init();
-            const touch = e.touches[0];
-            this.input.pointerActive = true;
-            this.input.isTouch = true;
-            this.input.pointerX = touch.clientX;
-            this.input.pointerY = touch.clientY;
-        }, { passive: false });
-
-        this.canvas.addEventListener('touchmove', (e) => {
-            if (this.state !== 'PLAYING') return;
-            e.preventDefault();
-            const touch = e.touches[0];
-            this.input.pointerX = touch.clientX;
-            this.input.pointerY = touch.clientY;
-        }, { passive: false });
-
-        this.canvas.addEventListener('touchend', () => {
-            this.input.pointerActive = false;
-        });
-
+// ... existing code ... -->
         // UI Button Listeners
+        if (this.ui.pilotNameInput) {
+            this.ui.pilotNameInput.addEventListener('input', (e) => {
+                this.setPilotName(e.target.value);
+            });
+            this.ui.pilotNameInput.addEventListener('blur', (e) => {
+                this.setPilotName(e.target.value);
+            });
+        }
+
         if (this.ui.diffSlider) {
             this.ui.diffSlider.addEventListener('input', (e) => {
                 this.setDifficulty(e.target.value);
@@ -2620,6 +2661,9 @@ class GameEngine {
     }
 
     startNewGame(startWave = 1) {
+        if (this.ui.pilotNameInput) {
+            this.setPilotName(this.ui.pilotNameInput.value);
+        }
         this.score = 0;
         this.wave = startWave;
         this.multiplier = 1.0;
@@ -2809,9 +2853,12 @@ class GameEngine {
         this.ui.finalScore.textContent = this.score.toLocaleString();
         this.ui.finalWave.textContent = String(this.wave).padStart(2, '0');
         this.ui.finalBest.textContent = this.highScore.toLocaleString();
+        if (this.ui.gameoverPilotTag) {
+            this.ui.gameoverPilotTag.textContent = `PILOT: ${this.pilotName}`;
+        }
         this.ui.gameoverDiffTag.textContent = `DIFFICULTY: LV ${this.diff.level} • ${this.diff.name}`;
         this.ui.gameoverDiffTag.style.color = this.diff.color;
-        this.ui.newRecordBadge.textContent = isNewRecord ? '★ NEW LEVEL RECORD ★' : 'Vanguard Destroyed';
+        this.ui.newRecordBadge.textContent = isNewRecord ? `★ NEW RECORD — ${this.pilotName} ★` : `${this.pilotName} Destroyed`;
         this.ui.newRecordBadge.style.color = isNewRecord ? '#00ff88' : '#ffe600';
 
         setTimeout(() => {
